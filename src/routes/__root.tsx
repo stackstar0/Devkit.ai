@@ -74,25 +74,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "stackstar.app" },
+      { title: "devkit.ai" },
       {
         name: "description",
         content:
-          "StackStar Blueprint is a frontend for StackStar.AI, transforming software ideas into architecture blueprints.",
+          "DevKit Blueprint is a frontend for DevKit.AI, transforming software ideas into architecture blueprints.",
       },
-      { property: "og:title", content: "stackstar.app" },
+      { property: "og:title", content: "devkit.ai" },
       {
         property: "og:description",
         content:
-          "StackStar Blueprint is a frontend for StackStar.AI, transforming software ideas into architecture blueprints.",
+          "DevKit Blueprint is a frontend for DevKit.AI, transforming software ideas into architecture blueprints.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "stackstar.app" },
+      { name: "twitter:title", content: "devkit.ai" },
       {
         name: "twitter:description",
         content:
-          "StackStar Blueprint is a frontend for StackStar.AI, transforming software ideas into architecture blueprints.",
+          "DevKit Blueprint is a frontend for DevKit.AI, transforming software ideas into architecture blueprints.",
       },
     ],
     links: [

@@ -24,7 +24,7 @@ export interface ChatMessage {
   skipped?: boolean;
 }
 
-interface StackStarState {
+interface DevKitState {
   sessionId: string | null;
   initialIdea: string;
   phases: Phase[];
@@ -46,7 +46,7 @@ export const PHASE_DEFS: Phase[] = [
   { key: "deployment", label: "Deployment", status: "pending" },
 ];
 
-export const useStackStar = create<StackStarState>()(
+export const useDevKit = create<DevKitState>()(
   persist(
     (set) => ({
       sessionId: null,
@@ -77,6 +77,6 @@ export const useStackStar = create<StackStarState>()(
           currentPhase: "ui_ux",
         }),
     }),
-    { name: "stackstar-session" },
+    { name: "devkit-session" },
   ),
 );

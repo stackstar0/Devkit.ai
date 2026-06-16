@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const API_BASE =
-  (typeof window !== "undefined" && (window as any).__STACKSTAR_API__) ||
+  (typeof window !== "undefined" && (window as any).__DEVKIT_API__) ||
   (import.meta as any).env?.VITE_API_BASE ||
   "http://localhost:8000";
 

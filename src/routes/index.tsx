@@ -4,18 +4,18 @@ import { motion } from "motion/react";
 import { ArrowRight, Sparkles, Code2, Layers, Shield, Rocket, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { startSession } from "@/lib/api";
-import { useStackStar } from "@/lib/store";
+import { useDevKit } from "@/lib/store";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "StackStar.AI — Turn ideas into production-ready blueprints" },
+      { title: "DevKit.AI — Turn ideas into production-ready blueprints" },
       {
         name: "description",
         content:
-          "StackStar.AI guides you through a 6-phase AI discovery process to transform raw software ideas into production-ready architecture blueprints.",
+          "DevKit.AI guides you through a 6-phase AI discovery process to transform raw software ideas into production-ready architecture blueprints.",
       },
-      { property: "og:title", content: "StackStar.AI" },
+      { property: "og:title", content: "DevKit.AI" },
       { property: "og:description", content: "Turn raw ideas into production-ready blueprints." },
     ],
   }),
@@ -42,7 +42,7 @@ function Landing() {
   const [idea, setIdea] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const setSession = useStackStar((s) => s.setSession);
+  const setSession = useDevKit((s) => s.setSession);
 
   async function handleStart() {
     if (!idea.trim()) {
@@ -56,7 +56,7 @@ function Landing() {
       navigate({ to: "/conversation/$sessionId", params: { sessionId: session_id } });
     } catch (e: any) {
       console.error(e);
-      toast.error("Couldn't reach the StackStar backend. Is the API running?");
+      toast.error("Couldn't reach the DevKit backend. Is the API running?");
     } finally {
       setLoading(false);
     }
@@ -70,7 +70,7 @@ function Landing() {
             <Sparkles className="size-4 text-white" />
           </div>
           <span className="font-semibold tracking-tight">
-            StackStar<span className="text-gradient">.AI</span>
+            DevKit<span className="text-gradient">.AI</span>
           </span>
         </div>
         <div className="text-xs text-muted-foreground hidden sm:block">v1.0 · Early access</div>

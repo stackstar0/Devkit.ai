@@ -4,12 +4,12 @@ import { motion, AnimatePresence } from "motion/react";
 import { Send, Sparkles, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { wsUrl } from "@/lib/api";
-import { useStackStar, type PhaseKey, type ChatMessage } from "@/lib/store";
+import { useDevKit, type PhaseKey, type ChatMessage } from "@/lib/store";
 import { PhaseBar } from "@/components/PhaseBar";
 
 export const Route = createFileRoute("/conversation/$sessionId")({
   head: () => ({
-    meta: [{ title: "Discovery — StackStar.AI" }],
+    meta: [{ title: "Discovery — DevKit.AI" }],
   }),
   component: Conversation,
 });
@@ -21,7 +21,7 @@ function uid() {
 function Conversation() {
   const { sessionId } = useParams({ from: "/conversation/$sessionId" });
   const navigate = useNavigate();
-  const { phases, messages, addMessage, markPhase, setCurrentPhase } = useStackStar();
+  const { phases, messages, addMessage, markPhase, setCurrentPhase } = useDevKit();
 
   const [input, setInput] = useState("");
   const [connState, setConnState] = useState<"connecting" | "open" | "reconnecting" | "closed">(
@@ -173,7 +173,7 @@ function Conversation() {
                 <Sparkles className="size-3.5 text-white" />
               </div>
               <span className="font-semibold text-sm">
-                StackStar<span className="text-gradient">.AI</span>
+                DevKit<span className="text-gradient">.AI</span>
               </span>
             </div>
             <ConnectionBadge state={connState} />
@@ -302,7 +302,7 @@ function Bubble({ m }: { m: ChatMessage }) {
       <div className={`max-w-[85%] ${isAi ? "" : "text-right"}`}>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1 flex gap-2 items-center">
           {isAi ? (
-            <span>StackStar AI{m.phase ? ` · ${m.phase.replace("_", " ")}` : ""}</span>
+            <span>DevKit AI{m.phase ? ` · ${m.phase.replace("_", " ")}` : ""}</span>
           ) : (
             <span>You</span>
           )}

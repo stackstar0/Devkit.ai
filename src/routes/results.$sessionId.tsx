@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { getResults, streamUrl } from "@/lib/api";
 
 export const Route = createFileRoute("/results/$sessionId")({
-  head: () => ({ meta: [{ title: "Blueprint — StackStar.AI" }] }),
+  head: () => ({ meta: [{ title: "Blueprint — DevKit.AI" }] }),
   component: Results,
 });
 
@@ -104,7 +104,7 @@ function Results() {
             </button>
             <button
               disabled={!ready}
-              onClick={() => download("stackstar-report.md", buildReport(r))}
+              onClick={() => download("devkit-report.md", buildReport(r))}
               className="text-xs inline-flex items-center gap-1.5 rounded-xl px-3 py-2 bg-gradient-primary text-white shadow-glow disabled:opacity-40"
             >
               <Download className="size-3.5" /> Full Report
@@ -307,7 +307,7 @@ function pretty(k: string) {
 }
 
 function buildReport(r: Results) {
-  return `# ${r.project_name || "Project"} — StackStar Blueprint
+  return `# ${r.project_name || "Project"} — DevKit Blueprint
 
 ## Architecture
 - Frontend: ${r.architecture?.frontend || "-"}
