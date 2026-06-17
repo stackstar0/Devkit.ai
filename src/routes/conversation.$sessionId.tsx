@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, useParams } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Send, Sparkles, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { Send, Sparkles, Wifi, WifiOff, Loader2, Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
 import { wsUrl } from "@/lib/api";
 import { useDevKit, type PhaseKey, type ChatMessage } from "@/lib/store";
@@ -28,14 +28,21 @@ function Conversation() {
     "connecting",
   );
   const [aiTyping, setAiTyping] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasSeeded = useRef(false);
   const [phasesComplete, setPhasesComplete] = useState(false);
 
   // Seed first AI message on first visit
   useEffect(() => {
-    if (messages.length === 0) {
+    if (messages.length === 0 && !hasSeeded.current) {
+      hasSeeded.current = true;
       addMessage({
         id: uid(),
         role: "ai",
@@ -137,18 +144,42 @@ function Conversation() {
     }
   }
 
-  function handleSend() {
+  async function handleSend() {
     const text = input.trim();
-    if (!text) return;
+    if (!text && !selectedFile) return;
+
+    setIsSending(true);
+    let base64String = undefined;
+
+    if (selectedFile) {
+      base64String = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedFile);
+      });
+    }
+
     const msg: ChatMessage = {
       id: uid(),
       role: "user",
       timestamp: Date.now(),
-      text,
+      text: text || "Sent an image.",
     };
     addMessage(msg);
     setInput("");
-    sendPayload({ answer: text, skipped: false });
+    setSelectedFile(null);
+    setImagePreview(null);
+    setAiTyping(true);
+    
+    const textarea = document.querySelector('textarea');
+    if (textarea) textarea.style.height = 'auto';
+
+    sendPayload({ answer: text, skipped: false, image_base64: base64String });
+    setIsSending(false);
   }
 
   function handleSkip() {
@@ -159,8 +190,22 @@ function Conversation() {
       text: "Use the recommended default",
       skipped: true,
     });
+    setAiTyping(true);
     sendPayload({ answer: "", skipped: true });
     toast.success("Skipped — we'll use a smart default ✨");
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type)) {
+        toast.error('Only JPG, PNG, and WebP images are supported.');
+        return;
+      }
+      setSelectedFile(file);
+      const url = URL.createObjectURL(file);
+      setImagePreview(url);
+    }
   }
 
   return (
@@ -194,34 +239,70 @@ function Conversation() {
       </main>
 
       <div className="fixed inset-x-0 bottom-0 z-30 px-4 md:px-8 pb-6">
-        <div className="max-w-3xl mx-auto glass rounded-2xl p-2 shadow-card">
+        <div className="max-w-3xl mx-auto glass rounded-2xl p-2 shadow-card flex flex-col gap-2">
+          {imagePreview && (
+            <div className="relative inline-block w-20 h-20 ml-2 mt-2">
+              <img src={imagePreview} alt="Preview" className="w-full h-full object-cover rounded-xl border border-border/50" />
+              <button
+                onClick={() => {
+                  setSelectedFile(null);
+                  setImagePreview(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="absolute -top-2 -right-2 bg-background border border-border rounded-full p-1 hover:bg-muted transition"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
+            <input 
+              type="file" 
+              accept=".png, .jpg, .jpeg, .webp" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleFileChange} 
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-2.5 mb-[1px] text-muted-foreground hover:text-foreground hover:bg-card/50 rounded-xl transition-colors shrink-0"
+              title="Attach image"
+              disabled={isSending}
+            >
+              <Paperclip className="size-5" />
+            </button>
             <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
               rows={1}
               placeholder="Type your answer…"
-              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none text-sm placeholder:text-muted-foreground max-h-40"
+              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none text-sm placeholder:text-muted-foreground max-h-40 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
                 }
               }}
+              disabled={isSending}
             />
             <button
               onClick={handleSkip}
-              className="text-xs rounded-xl px-3 py-2 border border-border bg-card/50 hover:bg-card text-muted-foreground hover:text-foreground transition whitespace-nowrap"
+              className="text-xs mb-[3px] rounded-xl px-3 py-2 border border-border bg-card/50 hover:bg-card text-muted-foreground hover:text-foreground transition whitespace-nowrap"
               title="Skip & use recommended default"
+              disabled={isSending}
             >
               Skip & Use Recommended ✨
             </button>
             <button
               onClick={handleSend}
-              disabled={!input.trim()}
-              className="rounded-xl bg-gradient-primary size-10 grid place-items-center text-white shadow-glow disabled:opacity-40"
+              disabled={(!input.trim() && !selectedFile) || isSending}
+              className="rounded-xl bg-gradient-primary size-10 flex shrink-0 place-items-center justify-center text-white shadow-glow disabled:opacity-40"
             >
-              <Send className="size-4" />
+              {isSending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             </button>
           </div>
         </div>
