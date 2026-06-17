@@ -40,13 +40,6 @@ function Conversation() {
   const hasSeeded = useRef(false);
   const [phasesComplete, setPhasesComplete] = useState(false);
 
-  // Auto-resize textarea safely
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [input]);
 
   // Seed first AI message on first visit
   useEffect(() => {
@@ -180,8 +173,13 @@ function Conversation() {
     };
     addMessage(msg);
     setInput("");
+    // Reset textarea height after clearing input
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
     setSelectedFile(null);
     setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setAiTyping(true);
 
     sendPayload({ answer: text, skipped: false, image_base64: base64String });
@@ -280,10 +278,15 @@ function Conversation() {
             <textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                // Inline auto-resize: collapse then expand to fit content
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
               rows={1}
               placeholder="Type your answer…"
-              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none text-sm placeholder:text-muted-foreground max-h-40"
+              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none text-sm placeholder:text-muted-foreground max-h-40 [&::-webkit-scrollbar]:hidden"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
