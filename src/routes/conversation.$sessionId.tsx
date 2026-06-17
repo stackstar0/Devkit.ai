@@ -36,8 +36,17 @@ function Conversation() {
   const retryRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasSeeded = useRef(false);
   const [phasesComplete, setPhasesComplete] = useState(false);
+
+  // Auto-resize textarea safely
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [input]);
 
   // Seed first AI message on first visit
   useEffect(() => {
@@ -174,9 +183,6 @@ function Conversation() {
     setSelectedFile(null);
     setImagePreview(null);
     setAiTyping(true);
-    
-    const textarea = document.querySelector('textarea');
-    if (textarea) textarea.style.height = 'auto';
 
     sendPayload({ answer: text, skipped: false, image_base64: base64String });
     setIsSending(false);
@@ -272,15 +278,13 @@ function Conversation() {
               <Paperclip className="size-5" />
             </button>
             <textarea
+              ref={textareaRef}
               value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                e.target.style.height = 'auto';
-                e.target.style.height = `${e.target.scrollHeight}px`;
-              }}
+              onChange={(e) => setInput(e.target.value)}
               rows={1}
               placeholder="Type your answer…"
-              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none text-sm placeholder:text-muted-foreground max-h-40 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none text-sm placeholder:text-muted-foreground max-h-40"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
