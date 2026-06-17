@@ -160,7 +160,7 @@ function Landing() {
                   className="glass rounded-xl p-3 flex flex-col items-center gap-2"
                 >
                   <Icon
-                    className="size-4 text-gradient"
+                    className="size-4"
                     style={{ color: "oklch(0.66 0.21 285)" }}
                   />
                   <span className="text-xs text-muted-foreground">{label}</span>

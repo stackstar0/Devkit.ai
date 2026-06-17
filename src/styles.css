@@ -112,11 +112,20 @@
   }
 
   body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background-image:
       radial-gradient(at 15% 0%, oklch(0.66 0.21 285 / 0.18) 0px, transparent 50%),
       radial-gradient(at 85% 100%, oklch(0.6 0.22 305 / 0.15) 0px, transparent 50%);
-    background-attachment: fixed;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif;
   }
 
   ::selection {
