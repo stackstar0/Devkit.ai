@@ -280,14 +280,18 @@ function Conversation() {
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
-                // Inline auto-resize: collapse then expand to fit content
+                // 1. Temporarily hide overflow to prevent Chrome scrollbar measurement artifacts
+                e.target.style.overflowY = 'hidden'; 
+                // 2. Reset height to auto to shrink if text was deleted
                 e.target.style.height = 'auto';
+                // 3. Apply the true scroll height
                 e.target.style.height = `${e.target.scrollHeight}px`;
+                // 4. Restore overflow behavior so max-h limits still work when exceeded
+                e.target.style.overflowY = 'auto';
               }}
               rows={1}
               placeholder="Type your answer…"
-              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none text-sm placeholder:text-muted-foreground max-h-40 [&::-webkit-scrollbar]:hidden"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              className="flex-1 resize-none bg-transparent px-3 py-2.5 outline-none text-sm placeholder:text-muted-foreground max-h-40 scrollbar-none"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
