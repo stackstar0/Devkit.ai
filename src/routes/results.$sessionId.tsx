@@ -51,12 +51,32 @@ function Results() {
       .then(setData)
       .catch(() => setData(SAMPLE));
     const es = new EventSource(streamUrl(sessionId));
-    es.addEventListener("saved", () => setSaved(true));
+    es.addEventListener("saved", () => {
+      setSaved(true);
+      es.close();
+    });
+    es.addEventListener("done", () => {
+      es.close();
+    });
     es.onmessage = (e) => {
       try {
         const d = JSON.parse(e.data);
-        if (d?.event === "saved") setSaved(true);
-      } catch {}
+        if (d?.event === "saved") {
+          setSaved(true);
+          es.close();
+        }
+        if (d?.event === "done") {
+          es.close();
+        }
+      } catch {
+        if (e.data === "saved") {
+          setSaved(true);
+          es.close();
+        }
+        if (e.data === "done") {
+          es.close();
+        }
+      }
     };
     return () => es.close();
   }, [sessionId]);
