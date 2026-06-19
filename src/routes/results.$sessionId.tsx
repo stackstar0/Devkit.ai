@@ -1,210 +1,284 @@
 import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
-  Download,
-  Copy,
-  Check,
-  AlertTriangle,
-  Server,
-  Database,
-  Globe,
-  Code2,
-  Cloud,
-  Plug,
-  ChevronDown,
-  Sparkles,
-  ArrowLeft,
+  Download, Copy, Check, AlertTriangle, Cloud, Plug, ChevronDown,
+  Sparkles, ArrowLeft, PackageOpen, Rocket, MessageSquarePlus, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getResults, streamUrl } from "@/lib/api";
+import { getResults, downloadBoilerplate } from "@/lib/api";
+import { useDevKit } from "@/lib/store";
+import { useStreamBlueprint } from "@/hooks/useStreamBlueprint";
+import { ArchitectureCanvas } from "@/components/ArchitectureCanvas";
+import { CostEstimator } from "@/components/CostEstimator";
+import { InstructionEditor } from "@/components/InstructionEditor";
+import { RefinementPanel } from "@/components/RefinementPanel";
+import { openInSandbox, zipBlobToFiles, triggerBlobDownload } from "@/lib/sandbox";
 
 export const Route = createFileRoute("/results/$sessionId")({
   head: () => ({ meta: [{ title: "Blueprint — DevKit.AI" }] }),
   component: Results,
 });
 
-type Results = {
-  project_name?: string;
-  architecture?: {
-    frontend?: string;
-    backend?: string;
-    database?: string;
-    hosting?: string;
-    apis?: string[];
-  };
-  phase_summaries?: Record<string, string>;
-  milestones?: { name: string; duration: string; dependencies?: string[] }[];
-  cost?: { launch?: string; scale?: string };
-  warnings?: { title: string; severity?: "warn" | "danger"; description?: string }[];
-  instruction_md?: string;
-  saved?: boolean;
-};
-
 function Results() {
   const { sessionId } = useParams({ from: "/results/$sessionId" });
-  const [data, setData] = useState<Results | null>(null);
-  const [saved, setSaved] = useState(false);
+  const {
+    architecture, milestones, phaseSummaries, instructionMd,
+    cost, warnings, projectName, streamStatus, resetBlueprint,
+  } = useDevKit();
 
+  const [saved, setSaved] = useState(false);
+  const [archView, setArchView] = useState<"graph" | "card">("graph");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [sandboxing, setSandboxing] = useState(false);
+
+  // Start streaming blueprint data into Zustand
+  useStreamBlueprint(sessionId);
+
+  // Also fetch saved results (handles page refresh / direct link)
   useEffect(() => {
     getResults(sessionId)
-      .then(setData)
-      .catch(() => setData(SAMPLE));
-    const es = new EventSource(streamUrl(sessionId));
-    es.addEventListener("saved", () => {
-      setSaved(true);
-      es.close();
-    });
-    es.addEventListener("done", () => {
-      es.close();
-    });
-    es.onmessage = (e) => {
-      try {
-        const d = JSON.parse(e.data);
-        if (d?.event === "saved") {
+      .then((data) => {
+        if (data.architecture && !architecture) {
+          const { setArchitecture, setMilestones, setInstructionMd, setCost, setWarnings, setProjectName, setPhaseSummaries } = useDevKit.getState();
+          if (data.architecture) setArchitecture(data.architecture);
+          if (data.milestones) setMilestones(data.milestones);
+          if (data.instruction_md) setInstructionMd(data.instruction_md);
+          if (data.cost) setCost(data.cost);
+          if (data.warnings) setWarnings(data.warnings);
+          if (data.project_name) setProjectName(data.project_name);
+          if (data.phase_summaries) setPhaseSummaries(data.phase_summaries);
           setSaved(true);
-          es.close();
         }
-        if (d?.event === "done") {
-          es.close();
-        }
-      } catch {
-        if (e.data === "saved") {
-          setSaved(true);
-          es.close();
-        }
-        if (e.data === "done") {
-          es.close();
-        }
-      }
-    };
-    return () => es.close();
+      })
+      .catch(() => {/* streaming will populate the data */});
   }, [sessionId]);
 
-  const r = data ?? SAMPLE;
-  const ready = saved || r.saved;
+  const isStreaming = streamStatus === "streaming" || streamStatus === "idle";
+  const hasArch = !!architecture;
+  const hasMilestones = !!milestones;
+  const hasInstruction = !!instructionMd;
 
-  function download(name: string, content: string) {
-    const blob = new Blob([content], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const blob = await downloadBoilerplate(sessionId);
+      triggerBlobDownload(blob, `${sessionId}-boilerplate.zip`);
+      toast.success("Codebase exported!");
+    } catch {
+      toast.error("Export failed — is the backend running?");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleSandbox() {
+    setSandboxing(true);
+    try {
+      const blob = await downloadBoilerplate(sessionId);
+      const files = await zipBlobToFiles(blob);
+      await openInSandbox(files, projectName || "DevKit Project");
+    } catch {
+      toast.error("Sandbox launch failed");
+    } finally {
+      setSandboxing(false);
+    }
   }
 
   return (
     <div className="min-h-screen">
-      <header className="px-4 md:px-8 py-5 border-b border-border/60 sticky top-0 z-30 glass">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+      {/* Header */}
+      <header className="px-4 md:px-8 py-4 border-b border-border/60 sticky top-0 z-30 glass">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
-            <Link
-              to="/"
-              className="size-8 rounded-lg border border-border grid place-items-center hover:bg-card transition"
-            >
+            <Link to="/" className="size-8 rounded-lg border border-border grid place-items-center hover:bg-card transition">
               <ArrowLeft className="size-4" />
             </Link>
             <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Blueprint
-              </div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Blueprint</div>
               <h1 className="text-base md:text-lg font-semibold truncate">
-                {r.project_name || "Untitled Project"}
+                {projectName || (isStreaming ? "Generating…" : "Untitled Project")}
               </h1>
             </div>
+            {isStreaming && (
+              <div className="flex items-center gap-1.5 text-xs text-primary">
+                <Loader2 className="size-3 animate-spin" />
+                <span>Streaming…</span>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
             <button
-              disabled={!ready}
-              onClick={() => download("instruction.md", r.instruction_md || "")}
-              className="text-xs inline-flex items-center gap-1.5 rounded-xl px-3 py-2 border border-border bg-card/60 hover:bg-card disabled:opacity-40"
+              onClick={() => setPanelOpen(true)}
+              className="text-xs inline-flex items-center gap-1.5 rounded-xl px-3 py-2 border border-border/60 bg-card/40 hover:bg-card transition"
+            >
+              <MessageSquarePlus className="size-3.5" /> Refine
+            </button>
+            <button
+              disabled={!hasInstruction}
+              onClick={() => {
+                const blob = new Blob([instructionMd || ""], { type: "text/markdown" });
+                triggerBlobDownload(blob, "instruction.md");
+              }}
+              className="text-xs inline-flex items-center gap-1.5 rounded-xl px-3 py-2 border border-border bg-card/60 hover:bg-card disabled:opacity-40 transition"
             >
               <Download className="size-3.5" /> instruction.md
             </button>
             <button
-              disabled={!ready}
-              onClick={() => download("devkit-report.md", buildReport(r))}
-              className="text-xs inline-flex items-center gap-1.5 rounded-xl px-3 py-2 bg-gradient-primary text-white shadow-glow disabled:opacity-40"
+              disabled={exporting || !hasArch}
+              onClick={handleExport}
+              className="text-xs inline-flex items-center gap-1.5 rounded-xl px-3 py-2 border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 disabled:opacity-40 transition"
             >
-              <Download className="size-3.5" /> Full Report
+              {exporting ? <Loader2 className="size-3.5 animate-spin" /> : <PackageOpen className="size-3.5" />}
+              Export Codebase ⚡
+            </button>
+            <button
+              disabled={sandboxing || !hasArch}
+              onClick={handleSandbox}
+              className="text-xs inline-flex items-center gap-1.5 rounded-xl px-3 py-2 bg-gradient-primary text-white shadow-glow disabled:opacity-40 transition"
+            >
+              {sandboxing ? <Loader2 className="size-3.5 animate-spin" /> : <Rocket className="size-3.5" />}
+              🚀 Run in Sandbox
             </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-10">
+
         {/* Architecture */}
-        <Section title="Architecture Overview" subtitle="The stack we recommend, end to end.">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <StackCard icon={Code2} label="Frontend" value={r.architecture?.frontend} />
-            <StackCard icon={Server} label="Backend" value={r.architecture?.backend} />
-            <StackCard icon={Database} label="Database" value={r.architecture?.database} />
-            <StackCard icon={Cloud} label="Hosting" value={r.architecture?.hosting} />
-            <StackCard icon={Plug} label="APIs" value={r.architecture?.apis?.join(", ")} />
-            <StackCard icon={Globe} label="Realtime" value="WebSockets + SSE" />
-          </div>
-        </Section>
+        <AnimatePresence>
+          {hasArch && (
+            <motion.section
+              initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight">Architecture Overview</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Live data-flow graph of your recommended stack</p>
+                </div>
+                <div className="flex rounded-xl overflow-hidden border border-border text-xs">
+                  {(["graph", "card"] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setArchView(v)}
+                      className={`px-3 py-1.5 capitalize transition-colors ${archView === v ? "bg-gradient-primary text-white" : "hover:bg-card"}`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <ArchitectureCanvas architecture={architecture!} view={archView} />
+            </motion.section>
+          )}
+        </AnimatePresence>
+
+        {/* Skeleton while streaming architecture */}
+        {!hasArch && isStreaming && <SkeletonSection label="Architecture Overview" rows={3} />}
 
         {/* Phase summaries */}
-        <Section title="Phase Summary" subtitle="A breakdown of each discovery phase.">
-          <div className="space-y-2">
-            {Object.entries(r.phase_summaries || {}).map(([k, v]) => (
-              <Accordion key={k} title={pretty(k)} body={v} />
-            ))}
-          </div>
-        </Section>
+        <AnimatePresence>
+          {phaseSummaries && Object.keys(phaseSummaries).length > 0 && (
+            <motion.section
+              initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.4, delay: 0.05 }}
+            >
+              <SectionHeader title="Phase Summary" subtitle="AI-inferred breakdown across all discovery phases." />
+              <div className="space-y-2">
+                {Object.entries(phaseSummaries).map(([k, v]) => (
+                  <Accordion key={k} title={pretty(k)} body={v} />
+                ))}
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
         {/* Milestones */}
-        <Section title="Milestones Timeline" subtitle="Your suggested delivery roadmap.">
-          <ol className="relative border-l border-border ml-3 space-y-5">
-            {(r.milestones || []).map((m, i) => (
-              <li key={i} className="pl-5 relative">
-                <span className="absolute -left-[7px] top-1 size-3.5 rounded-full bg-gradient-primary shadow-glow" />
-                <div className="glass rounded-xl p-4">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="font-medium text-sm">{m.name}</div>
-                    <div className="text-xs text-muted-foreground">{m.duration}</div>
-                  </div>
-                  {m.dependencies?.length ? (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {m.dependencies.map((d) => (
-                        <span
-                          key={d}
-                          className="text-[10px] rounded-full bg-card border border-border px-2 py-0.5 text-muted-foreground"
-                        >
-                          depends on {d}
-                        </span>
-                      ))}
+        <AnimatePresence>
+          {hasMilestones && (
+            <motion.section
+              initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+            >
+              <SectionHeader title="Milestones Timeline" subtitle="Your suggested delivery roadmap." />
+              <motion.ol
+                className="relative border-l border-border ml-3 space-y-5"
+                initial="hidden"
+                animate="visible"
+                variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
+              >
+                {(milestones || []).map((m, i) => (
+                  <motion.li
+                    key={i}
+                    variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0 } }}
+                    className="pl-5 relative"
+                  >
+                    <span className="absolute -left-[7px] top-1 size-3.5 rounded-full bg-gradient-primary shadow-glow" />
+                    <div className="glass rounded-xl p-4">
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="font-medium text-sm">{m.name}</div>
+                        <div className="text-xs text-muted-foreground">{m.duration}</div>
+                      </div>
+                      {m.dependencies?.length ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {m.dependencies.map((d) => (
+                            <span key={d} className="text-[10px] rounded-full bg-card border border-border px-2 py-0.5 text-muted-foreground">
+                              depends on {d}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </Section>
+                  </motion.li>
+                ))}
+              </motion.ol>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
-        {/* Cost */}
-        <Section title="Cost Estimate" subtitle="Rough monthly cloud spend.">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <CostCard label="Launch Cost" value={r.cost?.launch || "—"} accent />
-            <CostCard label="Scale Cost" value={r.cost?.scale || "—"} />
-          </div>
-        </Section>
+        {!hasMilestones && isStreaming && <SkeletonSection label="Milestones Timeline" rows={2} />}
+
+        {/* Cost Estimator */}
+        <AnimatePresence>
+          {hasArch && (
+            <motion.section
+              initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.4, delay: 0.15 }}
+            >
+              <SectionHeader title="Cloud Cost Estimator" subtitle="Drag the slider to model infrastructure at your scale." />
+              <div className="glass rounded-2xl p-6">
+                <CostEstimator />
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
 
         {/* Warnings */}
-        {!!r.warnings?.length && (
-          <Section title="Integration Warnings" subtitle="Heads-ups before you build.">
+        {warnings && warnings.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <SectionHeader title="Integration Warnings" subtitle="Heads-ups before you build." />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {r.warnings.map((w, i) => (
+              {warnings.map((w, i) => (
                 <div
                   key={i}
-                  className={[
-                    "rounded-2xl p-4 border",
+                  className={`rounded-2xl p-4 border ${
                     w.severity === "danger"
                       ? "bg-red-500/10 border-red-500/30 text-red-200"
-                      : "bg-amber-500/10 border-amber-500/30 text-amber-200",
-                  ].join(" ")}
+                      : "bg-amber-500/10 border-amber-500/30 text-amber-200"
+                  }`}
                 >
                   <div className="flex items-center gap-2 font-medium text-sm">
                     <AlertTriangle className="size-4" /> {w.title}
@@ -213,64 +287,56 @@ function Results() {
                 </div>
               ))}
             </div>
-          </Section>
+          </motion.section>
         )}
 
-        {/* instruction.md preview */}
-        <Section title="instruction.md" subtitle="Drop this into your AI coding agent.">
-          <CodeViewer content={r.instruction_md || ""} />
-        </Section>
+        {/* instruction.md */}
+        <AnimatePresence>
+          {hasInstruction && (
+            <motion.section
+              initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
+              <SectionHeader title="instruction.md" subtitle="Drop this into Cursor, Copilot, or Devin to start building." />
+              <InstructionEditor content={instructionMd!} />
+            </motion.section>
+          )}
+        </AnimatePresence>
+
+        {!hasInstruction && isStreaming && <SkeletonSection label="instruction.md" rows={6} />}
+
       </main>
+
+      {/* Refinement Side Panel */}
+      <RefinementPanel sessionId={sessionId} open={panelOpen} onClose={() => setPanelOpen(false)} />
     </div>
   );
 }
 
-function Section({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
+// ── Sub-components ──────────────────────────────────────────────────────────
+
+function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+    <div className="mb-4">
+      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+      {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+    </div>
+  );
+}
+
+function SkeletonSection({ label, rows }: { label: string; rows: number }) {
+  return (
+    <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="mb-4">
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+        <div className="h-5 w-48 skeleton rounded-lg" />
       </div>
-      {children}
+      <div className="space-y-3">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="h-16 skeleton rounded-2xl" style={{ animationDelay: `${i * 0.1}s` }} />
+        ))}
+      </div>
     </motion.section>
-  );
-}
-
-function StackCard({ icon: Icon, label, value }: { icon: any; label: string; value?: string }) {
-  return (
-    <div className="glass rounded-2xl p-4 flex items-start gap-3">
-      <div className="size-9 rounded-xl bg-gradient-soft grid place-items-center">
-        <Icon className="size-4" style={{ color: "oklch(0.78 0.16 285)" }} />
-      </div>
-      <div className="min-w-0">
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
-        <div className="text-sm font-medium truncate">{value || "—"}</div>
-      </div>
-    </div>
-  );
-}
-
-function CostCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div
-      className={`rounded-2xl p-5 ${accent ? "bg-gradient-primary text-white shadow-glow" : "glass"}`}
-    >
-      <div
-        className={`text-[10px] uppercase tracking-widest ${accent ? "text-white/80" : "text-muted-foreground"}`}
-      >
-        {label}
-      </div>
-      <div className="text-3xl font-semibold tracking-tight mt-1">{value}</div>
-    </div>
   );
 }
 
@@ -285,39 +351,18 @@ function Accordion({ title, body }: { title: string; body: string }) {
         <span className="font-medium">{title}</span>
         <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && (
-        <div className="px-4 pb-4 text-sm text-muted-foreground whitespace-pre-wrap">{body}</div>
-      )}
-    </div>
-  );
-}
-
-function CodeViewer({ content }: { content: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="glass rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/60">
-        <div className="text-xs text-muted-foreground flex items-center gap-2">
-          <Sparkles className="size-3" /> instruction.md
-        </div>
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(content);
-            setCopied(true);
-            toast.success("Copied to clipboard");
-            setTimeout(() => setCopied(false), 1500);
-          }}
-          className="text-xs inline-flex items-center gap-1.5 rounded-lg px-2 py-1 border border-border hover:bg-card"
-        >
-          {copied ? <Check className="size-3" /> : <Copy className="size-3" />}{" "}
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
-      <pre className="max-h-[480px] overflow-auto p-4 text-xs leading-relaxed text-foreground/90">
-        <code>
-          {content || "# Your instruction set will appear here once generation completes."}
-        </code>
-      </pre>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 text-sm text-muted-foreground whitespace-pre-wrap">{body}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -325,61 +370,3 @@ function CodeViewer({ content }: { content: string }) {
 function pretty(k: string) {
   return k.replace(/_/g, " ").replace(/\b\w/g, (s) => s.toUpperCase());
 }
-
-function buildReport(r: Results) {
-  return `# ${r.project_name || "Project"} — DevKit Blueprint
-
-## Architecture
-- Frontend: ${r.architecture?.frontend || "-"}
-- Backend: ${r.architecture?.backend || "-"}
-- Database: ${r.architecture?.database || "-"}
-- Hosting: ${r.architecture?.hosting || "-"}
-- APIs: ${r.architecture?.apis?.join(", ") || "-"}
-
-## Milestones
-${(r.milestones || []).map((m) => `- ${m.name} (${m.duration})`).join("\n")}
-
-## Cost
-- Launch: ${r.cost?.launch || "-"}
-- Scale: ${r.cost?.scale || "-"}
-
-## instruction.md
-${r.instruction_md || ""}
-`;
-}
-
-const SAMPLE: Results = {
-  project_name: "Local Artist Marketplace",
-  architecture: {
-    frontend: "Next.js + Tailwind",
-    backend: "FastAPI",
-    database: "PostgreSQL",
-    hosting: "Vercel + Fly.io",
-    apis: ["Stripe", "Cloudinary", "Resend"],
-  },
-  phase_summaries: {
-    ui_ux: "Mobile-first marketplace with discover, artist, and order flows.",
-    core_logic: "Listings, carts, checkout, messaging.",
-    architecture: "Modular monolith with future service extraction.",
-    security: "JWT auth, RLS, signed media URLs.",
-    testing: "Pytest + Playwright end-to-end.",
-    deployment: "CI on push, preview environments, blue/green rollouts.",
-  },
-  milestones: [
-    { name: "MVP (auth, listings, browse)", duration: "3 weeks" },
-    { name: "Checkout + payments", duration: "2 weeks", dependencies: ["MVP"] },
-    { name: "Messaging + reviews", duration: "2 weeks", dependencies: ["Checkout"] },
-    { name: "Launch", duration: "1 week", dependencies: ["Messaging"] },
-  ],
-  cost: { launch: "$42 / mo", scale: "$480 / mo" },
-  warnings: [
-    {
-      title: "Stripe Connect KYC required",
-      severity: "warn",
-      description: "Plan 1-2 weeks for artist onboarding verification.",
-    },
-  ],
-  instruction_md:
-    "# Project Instructions\n\nBuild a marketplace for local artists using Next.js + FastAPI...\n",
-  saved: true,
-};

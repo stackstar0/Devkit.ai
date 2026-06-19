@@ -2,20 +2,22 @@ import { Check, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import type { Phase } from "@/lib/store";
 
-export function PhaseBar({ phases }: { phases: Phase[] }) {
+export function PhaseBar({ phases, orientation = "horizontal" }: { phases: Phase[], orientation?: "horizontal" | "vertical" }) {
+  const isVert = orientation === "vertical";
+  
   return (
-    <div className="w-full">
-      <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2">
+    <div className={`flex-shrink-0 ${isVert ? 'min-w-fit w-max' : 'w-full'}`}>
+      <div className={`flex ${isVert ? 'flex-col gap-4' : 'items-center gap-2 md:gap-3 overflow-x-auto pb-2'}`}>
         {phases.map((p, i) => {
           const isActive = p.status === "active";
           const isComplete = p.status === "complete";
           const isSkipped = p.status === "skipped";
           return (
-            <div key={p.key} className="flex items-center gap-2 md:gap-3 shrink-0">
+            <div key={p.key} className={`flex ${isVert ? 'flex-col items-start gap-2' : 'items-center gap-2 md:gap-3'} shrink-0`}>
               <motion.div
                 layout
                 className={[
-                  "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs border transition",
+                  "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs border transition w-full whitespace-nowrap",
                   isActive
                     ? "border-transparent bg-gradient-primary text-white shadow-glow"
                     : isComplete
@@ -48,7 +50,9 @@ export function PhaseBar({ phases }: { phases: Phase[] }) {
                 <span className="whitespace-nowrap">{p.label}</span>
                 {isSkipped && <span className="text-[10px] opacity-80">Auto-filled ✨</span>}
               </motion.div>
-              {i < phases.length - 1 && <div className="h-px w-4 md:w-8 bg-border" />}
+              {i < phases.length - 1 && (
+                <div className={isVert ? "w-px h-6 bg-border ml-4" : "h-px w-4 md:w-8 bg-border"} />
+              )}
             </div>
           );
         })}

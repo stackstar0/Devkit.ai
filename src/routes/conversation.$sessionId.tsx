@@ -150,8 +150,18 @@ function Conversation() {
     const text = input.trim();
     if (!text && !selectedFile) return;
 
+    // ── Semantic guard: reject gibberish / very short answers ─────────────
+    if (text && !selectedFile) {
+      const GIBBERISH = /^(asdf+|1234+|qwerty|xyz|test|ok\.?|yes\.?|no\.?|idk|lol|\.+|asd|fgh|hjk|zxc)$/i;
+      if (text.length < 3 || GIBBERISH.test(text)) {
+        toast.warning("Could you add a bit more detail? The AI needs context to reason well.", { duration: 3000 });
+        return;
+      }
+    }
+
     setIsSending(true);
     let base64String = undefined;
+
 
     if (selectedFile) {
       base64String = await new Promise<string>((resolve, reject) => {
@@ -215,7 +225,7 @@ function Conversation() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="px-4 md:px-8 py-4 border-b border-border/60 glass sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto flex flex-col gap-3">
+        <div className="max-w-7xl mx-auto flex flex-col gap-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <div className="size-7 rounded-lg bg-gradient-primary grid place-items-center shadow-glow">
@@ -227,12 +237,22 @@ function Conversation() {
             </div>
             <ConnectionBadge state={connState} />
           </div>
-          <PhaseBar phases={phases} />
+          {/* Mobile only phase bar */}
+          <div className="md:hidden">
+            <PhaseBar phases={phases} orientation="horizontal" />
+          </div>
         </div>
       </header>
 
-      <main ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-8 pt-6 pb-40">
-        <div className="max-w-3xl mx-auto space-y-4">
+      <div className="flex-1 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 px-4 md:px-8 py-6">
+        {/* Sidebar Step Indicator (Desktop) */}
+        <aside className="hidden md:block flex-shrink-0 min-w-fit w-max border-r border-border/50 pr-6">
+          <PhaseBar phases={phases} orientation="vertical" />
+        </aside>
+
+        {/* Main Content Panel */}
+        <main ref={scrollRef} className="flex-1 overflow-y-auto pb-40">
+          <div className="max-w-3xl mx-auto space-y-4">
           <AnimatePresence initial={false}>
             {messages.map((m) => (
               <Bubble key={m.id} m={m} />
@@ -241,6 +261,7 @@ function Conversation() {
           {aiTyping && <TypingBubble />}
         </div>
       </main>
+      </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 px-4 md:px-8 pb-6">
         <div className="max-w-3xl mx-auto glass rounded-2xl p-2 shadow-card flex flex-col gap-2">

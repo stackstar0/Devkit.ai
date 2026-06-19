@@ -6,16 +6,17 @@ import {
   Sparkles,
   Bot,
   ChevronDown,
+  Zap,
+  FlaskConical,
 } from "lucide-react";
 import { toast } from "sonner";
-import { startSession } from "@/lib/api";
+import { startSession, predictSession } from "@/lib/api";
 import { useDevKit } from "@/lib/store";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { WordRotator } from "@/components/WordRotator";
 import { AIThinkingViz } from "@/components/AIThinkingViz";
 import { DiscoveryTimeline } from "@/components/DiscoveryTimeline";
 import { CapabilityCards } from "@/components/CapabilityCards";
-import { MetricsStrip } from "@/components/MetricsStrip";
 
 export const Route = createFileRoute("/")(({
   head: () => ({
@@ -203,10 +204,9 @@ function Landing() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [isFocused, setIsFocused] = useState(false);
   const navigate = useNavigate();
-  const setSession = useDevKit((s) => s.setSession);
+  const { setSession, resetBlueprint, mode, setMode } = useDevKit();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Rotate placeholder text
   useEffect(() => {
     const t = setInterval(() => {
       setPlaceholderIdx((i) => (i + 1) % PLACEHOLDER_PROMPTS.length);
@@ -214,23 +214,40 @@ function Landing() {
     return () => clearInterval(t);
   }, []);
 
-  const handleStart = useCallback(async () => {
-    if (!idea.trim()) {
+  const handleStart = useCallback(async (overrideIdea?: string) => {
+    const prompt = (overrideIdea ?? idea).trim();
+    if (!prompt) {
       toast.error("Tell us what you're building first.");
       return;
     }
     setLoading(true);
+    resetBlueprint();
     try {
-      const { session_id } = await startSession(idea.trim());
-      setSession(session_id, idea.trim());
-      navigate({ to: "/conversation/$sessionId", params: { sessionId: session_id } });
+      if (mode === "quick") {
+        // Quick Mode: predict → go straight to results
+        const { session_id } = await predictSession(prompt);
+        setSession(session_id, prompt);
+        navigate({ to: "/results/$sessionId", params: { sessionId: session_id } });
+      } else {
+        // Advanced Mode: triage → conversation
+        const { session_id } = await startSession(prompt);
+        setSession(session_id, prompt);
+        navigate({ to: "/conversation/$sessionId", params: { sessionId: session_id } });
+      }
     } catch (e: any) {
       console.error(e);
       toast.error("Couldn't reach the DevKit backend. Is the API running?");
     } finally {
       setLoading(false);
     }
-  }, [idea, navigate, setSession]);
+  }, [idea, mode, navigate, setSession, resetBlueprint]);
+
+  const handleJudgeMode = useCallback(() => {
+    const demoPrompt = "Build a hyper-scalable B2B SaaS platform for real-time asset tracking with multi-tenant isolation, AI billing forecasting, and edge-cached database architecture.";
+    setIdea(demoPrompt);
+    setMode("quick");
+    setTimeout(() => handleStart(demoPrompt), 80);
+  }, [handleStart, setMode]);
 
   const isEmpty = idea.trim().length === 0;
   const charCount = idea.length;
@@ -430,8 +447,6 @@ function Landing() {
                         }}
                       />
 
-                      {/* Floating prompts (empty state) */}
-                      <FloatingPrompts visible={isEmpty && !isFocused} />
 
                       {/* Empty state hint */}
                       {isEmpty && !isFocused && (
@@ -479,6 +494,53 @@ function Landing() {
                     </motion.button>
                   ))}
                 </div>
+
+                {/* Mode toggle + Judge Mode */}
+                <div className="mt-4 flex items-center gap-3 flex-wrap">
+                  {/* Mode pills */}
+                  <div
+                    className="inline-flex items-center rounded-full p-0.5 gap-0.5"
+                    style={{ background: "oklch(0.13 0.02 270 / 0.8)", border: "1px solid oklch(1 0 0 / 0.08)" }}
+                  >
+                    <motion.button
+                      onClick={() => setMode("quick")}
+                      className="text-xs rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-all duration-200"
+                      animate={mode === "quick"
+                        ? { background: "linear-gradient(135deg, #C084FC, #7C3AED)", color: "#fff" }
+                        : { background: "transparent", color: "oklch(0.55 0.04 265)" }}
+                    >
+                      <Zap className="size-3" /> Quick
+                    </motion.button>
+                    <motion.button
+                      onClick={() => setMode("advanced")}
+                      className="text-xs rounded-full px-3 py-1.5 flex items-center gap-1.5 transition-all duration-200"
+                      animate={mode === "advanced"
+                        ? { background: "oklch(0.22 0.04 270)", color: "oklch(0.85 0.08 270)" }
+                        : { background: "transparent", color: "oklch(0.55 0.04 265)" }}
+                    >
+                      <FlaskConical className="size-3" /> Advanced
+                    </motion.button>
+                  </div>
+
+                  {/* Judge Mode */}
+                  <motion.button
+                    id="judge-mode-btn"
+                    onClick={handleJudgeMode}
+                    disabled={loading}
+                    className="text-xs rounded-full px-4 py-1.5 font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                    style={{
+                      background: "linear-gradient(135deg, oklch(0.75 0.18 70), oklch(0.66 0.21 285))",
+                      boxShadow: "0 0 20px -4px oklch(0.75 0.18 70 / 0.5)",
+                      color: "#fff",
+                    }}
+                    whileHover={{ scale: 1.04, boxShadow: "0 0 28px -2px oklch(0.75 0.18 70 / 0.7)" }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Zap className="size-3" />
+                    ⚡ Spark Blueprint (Judge Mode)
+                  </motion.button>
+                </div>
+
               </div>
 
               {/* AI Thinking Visualization */}
@@ -505,11 +567,6 @@ function Landing() {
             </motion.div>
           </motion.div>
         </main>
-
-        {/* ── Metrics Strip ─────────────────────────────────── */}
-        <section className="px-6 py-12 flex justify-center">
-          <MetricsStrip />
-        </section>
 
         {/* ── Capability Cards ──────────────────────────────── */}
         <section className="px-6 py-12 flex justify-center">

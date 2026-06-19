@@ -24,7 +24,54 @@ export interface ChatMessage {
   skipped?: boolean;
 }
 
-interface DevKitState {
+export interface ArchitectureData {
+  frontend?: string;
+  backend?: string;
+  database?: string;
+  hosting?: string;
+  apis?: string[];
+  cost?: { launch?: string; scale?: string };
+}
+
+export interface Milestone {
+  name: string;
+  duration: string;
+  dependencies?: string[];
+}
+
+export interface Warning {
+  title: string;
+  severity?: "warn" | "danger";
+  description?: string;
+}
+
+// ── Blueprint Slice ────────────────────────────────────────────────────────────
+interface BlueprintSlice {
+  architecture: ArchitectureData | null;
+  milestones: Milestone[] | null;
+  phaseSummaries: Record<string, string> | null;
+  instructionMd: string | null;
+  cost: { launch?: string; scale?: string } | null;
+  warnings: Warning[] | null;
+  projectName: string | null;
+  concurrentUsers: number;
+  streamStatus: "idle" | "streaming" | "complete" | "error";
+  mode: "quick" | "advanced";
+  setArchitecture: (d: ArchitectureData) => void;
+  setMilestones: (m: Milestone[]) => void;
+  setPhaseSummaries: (s: Record<string, string>) => void;
+  setInstructionMd: (md: string) => void;
+  setCost: (c: { launch?: string; scale?: string }) => void;
+  setWarnings: (w: Warning[]) => void;
+  setProjectName: (n: string) => void;
+  setConcurrentUsers: (n: number) => void;
+  setStreamStatus: (s: BlueprintSlice["streamStatus"]) => void;
+  setMode: (m: "quick" | "advanced") => void;
+  resetBlueprint: () => void;
+}
+
+// ── Session Slice ──────────────────────────────────────────────────────────────
+interface SessionSlice {
   sessionId: string | null;
   initialIdea: string;
   phases: Phase[];
@@ -46,14 +93,42 @@ export const PHASE_DEFS: Phase[] = [
   { key: "deployment", label: "Deployment", status: "pending" },
 ];
 
+const BLUEPRINT_DEFAULTS: BlueprintSlice = {
+  architecture: null,
+  milestones: null,
+  phaseSummaries: null,
+  instructionMd: null,
+  cost: null,
+  warnings: null,
+  projectName: null,
+  concurrentUsers: 1000,
+  streamStatus: "idle",
+  mode: "quick",
+  setArchitecture: () => {},
+  setMilestones: () => {},
+  setPhaseSummaries: () => {},
+  setInstructionMd: () => {},
+  setCost: () => {},
+  setWarnings: () => {},
+  setProjectName: () => {},
+  setConcurrentUsers: () => {},
+  setStreamStatus: () => {},
+  setMode: () => {},
+  resetBlueprint: () => {},
+};
+
+type DevKitState = SessionSlice & BlueprintSlice;
+
 export const useDevKit = create<DevKitState>()(
   persist(
     (set) => ({
+      // ── Session ──────────────────────────────────────────────────────────
       sessionId: null,
       initialIdea: "",
       phases: PHASE_DEFS,
       currentPhase: "ui_ux",
       messages: [],
+
       setSession: (id, idea) =>
         set({
           sessionId: id,
@@ -75,6 +150,41 @@ export const useDevKit = create<DevKitState>()(
           phases: PHASE_DEFS,
           messages: [],
           currentPhase: "ui_ux",
+        }),
+
+      // ── Blueprint ─────────────────────────────────────────────────────────
+      architecture: null,
+      milestones: null,
+      phaseSummaries: null,
+      instructionMd: null,
+      cost: null,
+      warnings: null,
+      projectName: null,
+      concurrentUsers: 1000,
+      streamStatus: "idle",
+      mode: "quick",
+
+      setArchitecture: (d) => set({ architecture: d }),
+      setMilestones: (m) => set({ milestones: m }),
+      setPhaseSummaries: (s) => set({ phaseSummaries: s }),
+      setInstructionMd: (md) => set({ instructionMd: md }),
+      setCost: (c) => set({ cost: c }),
+      setWarnings: (w) => set({ warnings: w }),
+      setProjectName: (n) => set({ projectName: n }),
+      setConcurrentUsers: (n) => set({ concurrentUsers: n }),
+      setStreamStatus: (s) => set({ streamStatus: s }),
+      setMode: (m) => set({ mode: m }),
+      resetBlueprint: () =>
+        set({
+          architecture: null,
+          milestones: null,
+          phaseSummaries: null,
+          instructionMd: null,
+          cost: null,
+          warnings: null,
+          projectName: null,
+          concurrentUsers: 1000,
+          streamStatus: "idle",
         }),
     }),
     { name: "devkit-session" },

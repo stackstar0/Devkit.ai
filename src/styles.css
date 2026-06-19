@@ -254,3 +254,26 @@
   80%  { opacity: 0.4; }
   100% { transform: translateY(400%); opacity: 0; }
 }
+
+/* ── Skeleton shimmer ─────────────────────────────────────── */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    oklch(0.18 0.02 270 / 0.7) 25%,
+    oklch(0.24 0.03 270 / 0.6) 50%,
+    oklch(0.18 0.02 270 / 0.7) 75%
+  );
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.5s infinite linear;
+}
+
+/* ── Scrollbar hide utility ───────────────────────────────── */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar { display: none; }
