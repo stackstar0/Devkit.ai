@@ -18,7 +18,11 @@ interface Message {
 }
 
 export function RefinementPanel({ sessionId, open, onClose }: Props) {
-  const { setArchitecture, architecture, refinementHistory, setRefinementHistory } = useDevKit();
+  const { 
+    setArchitecture, architecture, 
+    refinementHistory, setRefinementHistory,
+    setInstructionMd, setMilestones, setCost, setWarnings
+  } = useDevKit();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -50,15 +54,27 @@ export function RefinementPanel({ sessionId, open, onClose }: Props) {
 
     try {
       const result = await refineBlueprint(sessionId, text);
-      // Wait, result.refinement_history comes back from the backend now!
       if (result.refinement_history) {
         setRefinementHistory(result.refinement_history);
       }
       
       if (result.architecture) {
         setArchitecture({ ...(architecture || {}), ...result.architecture });
-        toast.success("Blueprint updated!");
       }
+      if (result.instruction_md) {
+        setInstructionMd(result.instruction_md);
+      }
+      if (result.milestones) {
+        setMilestones(result.milestones);
+      }
+      if (result.cost) {
+        setCost(result.cost);
+      }
+      if (result.warnings) {
+        setWarnings(result.warnings);
+      }
+      
+      toast.success("Blueprint updated!");
     } catch {
       setRefinementHistory([...refinementHistory, { role: "user", text }, {
         role: "ai",
