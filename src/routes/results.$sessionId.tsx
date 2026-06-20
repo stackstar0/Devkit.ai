@@ -15,6 +15,7 @@ import { InstructionEditor } from "@/components/InstructionEditor";
 import { RefinementPanel } from "@/components/RefinementPanel";
 import { openInSandbox, zipBlobToFiles, triggerBlobDownload } from "@/lib/sandbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WordRotator } from "@/components/WordRotator";
 
 export const Route = createFileRoute("/results/$sessionId")({
   head: () => ({ meta: [{ title: "Blueprint — DevKit.AI" }] }),
@@ -38,8 +39,32 @@ function Results() {
   const [showViewport, setShowViewport] = useState(false);
   const [viewportType, setViewportType] = useState<"sandbox" | "export" | null>(null);
 
+  const [streamEvent, setStreamEvent] = useState<string>("connecting");
+  const [showOverlay, setShowOverlay] = useState(true);
+
   // Start streaming blueprint data into Zustand
-  useStreamBlueprint(sessionId);
+  useStreamBlueprint(sessionId, setStreamEvent);
+
+  const isStreaming = streamStatus === "streaming" || streamStatus === "idle";
+  const hasArch = !!architecture;
+  const safeMilestones = Array.isArray(milestones) ? milestones : [];
+  const hasMilestones = safeMilestones.length > 0;
+  const hasInstruction = !!instructionMd;
+
+  useEffect(() => {
+    if (streamStatus === "complete") {
+      setStreamEvent("done");
+      const t = setTimeout(() => setShowOverlay(false), 2800);
+      return () => clearTimeout(t);
+    }
+    if (streamStatus === "idle" && hasArch && hasMilestones && hasInstruction) {
+      setShowOverlay(false);
+    }
+    if (streamStatus === "error") {
+      const t = setTimeout(() => setShowOverlay(false), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [streamStatus, hasArch, hasMilestones, hasInstruction]);
 
   // Also fetch saved results (handles page refresh / direct link)
   useEffect(() => {
@@ -56,16 +81,11 @@ function Results() {
           if (data.phase_summaries) setPhaseSummaries(data.phase_summaries);
           if (data.refinement_history) setRefinementHistory(data.refinement_history);
           setSaved(true);
+          setShowOverlay(false);
         }
       })
       .catch(() => {/* streaming will populate the data */});
   }, [sessionId]);
-
-  const isStreaming = streamStatus === "streaming" || streamStatus === "idle";
-  const hasArch = !!architecture;
-  const safeMilestones = Array.isArray(milestones) ? milestones : [];
-  const hasMilestones = safeMilestones.length > 0;
-  const hasInstruction = !!instructionMd;
 
   async function handleExport() {
     setViewportType("export");
@@ -120,7 +140,13 @@ function Results() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
+      <AnimatePresence>
+        {showOverlay && (
+          <AIProcessingOverlay event={streamEvent} status={streamStatus as "streaming" | "complete" | "error" | "connecting" | "idle"} />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="px-4 md:px-8 py-4 border-b border-border/60 sticky top-0 z-30 glass">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 flex-wrap">
@@ -495,4 +521,99 @@ function Accordion({ title, body }: { title: string; body: string }) {
 
 function pretty(k: string) {
   return k.replace(/_/g, " ").replace(/\b\w/g, (s) => s.toUpperCase());
+}
+
+function AIProcessingOverlay({ event, status }: { event: string; status: "connecting" | "streaming" | "complete" | "error" | "idle" }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (status !== "streaming") return;
+    const interval = setInterval(() => setElapsed((prev) => prev + 1), 1000);
+    return () => clearInterval(interval);
+  }, [status]);
+
+  const STAGES = [
+    { key: "brief_ready", label: "User Requirements" },
+    { key: "architect_complete", label: "Architecture Planning" },
+    { key: "pm_complete", label: "Project Milestones" },
+    { key: "prompt_complete", label: "instruction.md" },
+    { key: "done", label: "Deployment Blueprint" }
+  ];
+
+  const activeIndex = STAGES.findIndex(s => s.key === event) + 1;
+
+  const ROTATE_WORDS = [
+    "Analyzing your idea...",
+    "Extracting requirements...",
+    "Identifying core features...",
+    "Mapping system architecture...",
+    "Evaluating technology tradeoffs...",
+    "Designing database structure...",
+    "Planning authentication flow...",
+    "Generating deployment strategy...",
+    "Creating implementation roadmap...",
+    "Building instruction.md..."
+  ];
+
+  const [wordIndex, setWordIndex] = useState(0);
+  useEffect(() => {
+    if (status === "complete") return;
+    const timer = setInterval(() => {
+      setWordIndex(i => (i + 1) % ROTATE_WORDS.length);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [status]);
+
+  if (status === "idle" && event === "connecting") return null;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0, transition: { duration: 0.8 } }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-background/60 backdrop-blur-md"
+    >
+      <div className="glass max-w-sm w-full rounded-3xl p-8 relative overflow-hidden shadow-2xl border border-border/50">
+         <div className="absolute inset-0 bg-gradient-radial from-primary/10 to-transparent opacity-50" />
+         
+         <div className="relative z-10 flex flex-col gap-8">
+           <div className="text-center">
+             <h2 className="text-xl font-bold tracking-tight mb-2">
+               {status === "error" ? "Connection Interrupted" : status === "complete" ? "Architecture Complete" : "AI Architect Working"}
+             </h2>
+             <div className="h-6">
+                <AnimatePresence mode="wait">
+                  <motion.p 
+                    key={status === "error" ? "error" : status === "complete" ? "complete" : wordIndex}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className={`text-sm ${status === "error" ? "text-red-400" : status === "complete" ? "text-emerald-400" : "text-primary font-medium"}`}
+                  >
+                    {status === "error" ? "Attempting to reconnect..." : status === "complete" ? "Transitioning to dashboard..." : elapsed > 10 ? "Still working. Complex architectures may take a little longer." : ROTATE_WORDS[wordIndex]}
+                  </motion.p>
+                </AnimatePresence>
+             </div>
+           </div>
+           
+           <div className="space-y-4">
+             {STAGES.map((s, i) => {
+               const isDone = i < activeIndex || STAGES.findIndex(x => x.key === event) >= i || event === "done" || status === "complete";
+               const isActive = i === activeIndex || (event === STAGES[i-1]?.key);
+               return (
+                 <div key={s.key} className="flex items-center gap-3">
+                    <div className={`size-6 rounded-full flex shrink-0 items-center justify-center border-2 transition-all duration-500 ${isDone ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : isActive ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'border-border text-muted-foreground'}`}>
+                       {isDone ? <Check className="size-3" /> : isActive ? <Loader2 className="size-3 animate-spin" /> : <div className="size-1.5 rounded-full bg-current opacity-50" />}
+                    </div>
+                    <span className={`text-sm font-medium transition-colors duration-500 ${isDone ? 'text-emerald-50' : isActive ? 'text-primary-50' : 'text-muted-foreground'}`}>
+                       {s.label}
+                    </span>
+                 </div>
+               )
+             })}
+           </div>
+         </div>
+      </div>
+    </motion.div>
+  )
 }

@@ -8,7 +8,7 @@ import { useDevKit } from "@/lib/store";
  *
  * Returns { status } so callers can react to stream lifecycle changes.
  */
-export function useStreamBlueprint(sessionId: string | null) {
+export function useStreamBlueprint(sessionId: string | null, onEvent?: (event: string) => void) {
   const {
     setArchitecture,
     setMilestones,
@@ -39,6 +39,8 @@ export function useStreamBlueprint(sessionId: string | null) {
 
       const event = parsed?.event;
       const payload = parsed?.payload_json;
+
+      if (event && onEvent) onEvent(event);
 
       if (event === "architect_complete" && payload) {
         try {

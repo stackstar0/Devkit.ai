@@ -94,8 +94,8 @@ function Conversation() {
     if (msg.status === "phases_complete") {
       setPhasesComplete(true);
       setTimeout(() => {
-        navigate({ to: "/generation/$sessionId", params: { sessionId } });
-      }, 1800);
+        navigate({ to: "/results/$sessionId", params: { sessionId } });
+      }, 1000);
       return;
     }
     if (msg.type === "question" || msg.question) {
