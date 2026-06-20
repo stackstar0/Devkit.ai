@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Download, Copy, Check, AlertTriangle, Cloud, Plug, ChevronDown,
-  Sparkles, ArrowLeft, PackageOpen, Rocket, MessageSquarePlus, Loader2,
+  Sparkles, ArrowLeft, PackageOpen, Rocket, MessageSquarePlus, Loader2, X
 } from "lucide-react";
 import { toast } from "sonner";
 import { getResults, downloadBoilerplate } from "@/lib/api";
@@ -32,6 +32,9 @@ function Results() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [sandboxing, setSandboxing] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [showViewport, setShowViewport] = useState(false);
+  const [viewportType, setViewportType] = useState<"sandbox" | "export" | null>(null);
 
   // Start streaming blueprint data into Zustand
   useStreamBlueprint(sessionId);
@@ -62,12 +65,18 @@ function Results() {
   const hasInstruction = !!instructionMd;
 
   async function handleExport() {
+    setViewportType("export");
+    setShowViewport(true);
     setExporting(true);
+    setLogs(["Preparing project layout...", "Resolving dependencies...", "Generating Dockerfile...", "Compressing assets..."]);
     try {
       const blob = await downloadBoilerplate(sessionId);
+      setLogs(l => [...l, "Finalizing zip archive..."]);
       triggerBlobDownload(blob, `${sessionId}-boilerplate.zip`);
+      setLogs(l => [...l, "Codebase exported successfully!"]);
       toast.success("Codebase exported!");
     } catch {
+      setLogs(l => [...l, "[ERROR] Export failed — is the backend running?"]);
       toast.error("Export failed — is the backend running?");
     } finally {
       setExporting(false);
@@ -75,12 +84,18 @@ function Results() {
   }
 
   async function handleSandbox() {
+    setViewportType("sandbox");
+    setShowViewport(true);
     setSandboxing(true);
+    setLogs(["Booting StackBlitz WebContainer...", "Mounting virtual file system...", "Transpiling DevKit AI blueprint..."]);
     try {
       const blob = await downloadBoilerplate(sessionId);
+      setLogs(l => [...l, "Unpacking boilerplate to workspace..."]);
       const files = await zipBlobToFiles(blob);
+      setLogs(l => [...l, "Initializing dev server... Launching sandbox environment!"]);
       await openInSandbox(files, projectName || "DevKit Project");
     } catch {
+      setLogs(l => [...l, "[ERROR] Sandbox launch failed"]);
       toast.error("Sandbox launch failed");
     } finally {
       setSandboxing(false);
@@ -103,7 +118,7 @@ function Results() {
               </h1>
             </div>
             {isStreaming && (
-              <div className="flex items-center gap-1.5 text-xs text-primary">
+              <div className="flex items-center gap-1.5 text-xs text-primary whitespace-nowrap flex-shrink-0 min-w-fit">
                 <Loader2 className="size-3 animate-spin" />
                 <span>Streaming…</span>
               </div>
@@ -111,7 +126,7 @@ function Results() {
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap flex-shrink-0 min-w-fit">
             <button
               onClick={() => setPanelOpen(true)}
               className="text-xs inline-flex items-center gap-1.5 rounded-xl px-3 py-2 border border-border/60 bg-card/40 hover:bg-card transition"
@@ -148,7 +163,10 @@ function Results() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 md:px-8 py-8 space-y-10">
+      <main className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 transition-all duration-300 ease-in-out">
+        <div className={showViewport ? "grid grid-cols-1 xl:grid-cols-3 gap-6 w-full items-start" : ""}>
+          {/* Main Content Area */}
+          <div className={`space-y-10 ${showViewport ? "xl:col-span-2" : "max-w-6xl mx-auto"}`}>
 
         {/* Architecture */}
         <AnimatePresence>
@@ -307,6 +325,44 @@ function Results() {
 
         {!hasInstruction && isStreaming && <SkeletonSection label="instruction.md" rows={6} />}
 
+          </div> {/* End Main Content Area */}
+
+          {/* Execution Viewport */}
+          <AnimatePresence>
+            {showViewport && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                className="glass rounded-2xl p-4 sticky top-24 xl:col-span-1 h-[400px] flex flex-col mt-10 xl:mt-0"
+              >
+                <div className="flex items-center justify-between mb-3 border-b border-border/50 pb-2">
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    {viewportType === "sandbox" ? <Rocket className="size-3.5 text-primary" /> : <PackageOpen className="size-3.5 text-amber-500" />}
+                    {viewportType === "sandbox" ? "Sandbox Terminal" : "Export Log"}
+                  </div>
+                  <button onClick={() => setShowViewport(false)} className="opacity-50 hover:opacity-100 transition p-1 hover:bg-card rounded-md">
+                    <X className="size-3" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 text-[11px] font-mono scrollbar-none flex flex-col">
+                  {logs.map((log, i) => (
+                    <div key={i} className="animate-fade-in text-muted-foreground flex items-start gap-2 shrink-0">
+                      <span className="text-primary/60 shrink-0 mt-0.5">{'>'}</span> 
+                      <span className="break-words flex-1 leading-relaxed">{log}</span>
+                    </div>
+                  ))}
+                  {(exporting || sandboxing) && (
+                    <div className="animate-pulse text-muted-foreground flex items-center gap-2 mt-2 shrink-0">
+                      <span className="text-primary/60 shrink-0">{'>'}</span> 
+                      <span className="w-1.5 h-3 bg-primary/60 inline-block animate-pulse" />
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </main>
 
       {/* Refinement Side Panel */}
