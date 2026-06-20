@@ -59,7 +59,8 @@ function Results() {
 
   const isStreaming = streamStatus === "streaming" || streamStatus === "idle";
   const hasArch = !!architecture;
-  const hasMilestones = !!milestones;
+  const safeMilestones = Array.isArray(milestones) ? milestones : [];
+  const hasMilestones = safeMilestones.length > 0;
   const hasInstruction = !!instructionMd;
 
   async function handleExport() {
@@ -239,7 +240,7 @@ function Results() {
                 animate="visible"
                 variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
               >
-                {(milestones || []).map((m, i) => (
+                {safeMilestones.map((m, i) => (
                   <motion.li
                     key={i}
                     variants={{ hidden: { opacity: 0, x: -8 }, visible: { opacity: 1, x: 0 } }}
@@ -251,9 +252,9 @@ function Results() {
                         <div className="font-medium text-sm">{m.name}</div>
                         <div className="text-xs text-muted-foreground">{m.duration}</div>
                       </div>
-                      {m.dependencies?.length ? (
+                      {Array.isArray(m.dependencies) && m.dependencies.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-1.5">
-                          {m.dependencies.map((d) => (
+                          {m.dependencies.map((d: any) => (
                             <span key={d} className="text-[10px] rounded-full bg-card border border-border px-2 py-0.5 text-muted-foreground">
                               depends on {d}
                             </span>
