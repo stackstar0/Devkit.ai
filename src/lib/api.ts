@@ -49,6 +49,13 @@ export async function downloadBoilerplate(session_id: string): Promise<Blob> {
   return res.blob();
 }
 
+/** Download a Markdown VC Pitch Deck */
+export async function downloadPitchDeck(session_id: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/export/pitch-deck/${session_id}`, { method: "GET" });
+  if (!res.ok) throw new Error(`Pitch deck export failed: ${res.status}`);
+  return res.blob();
+}
+
 export function wsUrl(session_id: string) {
   const base = API_BASE.replace(/^http/, "ws");
   return `${base}/ws/session/${session_id}`;
