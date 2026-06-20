@@ -14,6 +14,7 @@ import { CostEstimator } from "@/components/CostEstimator";
 import { InstructionEditor } from "@/components/InstructionEditor";
 import { RefinementPanel } from "@/components/RefinementPanel";
 import { openInSandbox, zipBlobToFiles, triggerBlobDownload } from "@/lib/sandbox";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/results/$sessionId")({
   head: () => ({ meta: [{ title: "Blueprint — DevKit.AI" }] }),
@@ -199,7 +200,10 @@ function Results() {
         </AnimatePresence>
 
         {/* Skeleton while streaming architecture */}
-        {!hasArch && isStreaming && <SkeletonSection label="Architecture Overview" rows={3} />}
+        {!hasArch && isStreaming && <SkeletonSection type="architecture" />}
+
+        {/* Skeleton while streaming phases */}
+        {(!phaseSummaries || Object.keys(phaseSummaries).length === 0) && isStreaming && <SkeletonSection type="phases" />}
 
         {/* Phase summaries */}
         <AnimatePresence>
@@ -263,7 +267,7 @@ function Results() {
           )}
         </AnimatePresence>
 
-        {!hasMilestones && isStreaming && <SkeletonSection label="Milestones Timeline" rows={2} />}
+        {!hasMilestones && isStreaming && <SkeletonSection type="milestones" />}
 
         {/* Cost Estimator */}
         <AnimatePresence>
@@ -323,7 +327,7 @@ function Results() {
           )}
         </AnimatePresence>
 
-        {!hasInstruction && isStreaming && <SkeletonSection label="instruction.md" rows={6} />}
+        {!hasInstruction && isStreaming && <SkeletonSection type="instruction" />}
 
           </div> {/* End Main Content Area */}
 
@@ -382,19 +386,60 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
   );
 }
 
-function SkeletonSection({ label, rows }: { label: string; rows: number }) {
-  return (
-    <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="mb-4">
-        <div className="h-5 w-48 skeleton rounded-lg" />
-      </div>
-      <div className="space-y-3">
-        {Array.from({ length: rows }).map((_, i) => (
-          <div key={i} className="h-16 skeleton rounded-2xl" style={{ animationDelay: `${i * 0.1}s` }} />
-        ))}
-      </div>
-    </motion.section>
-  );
+function SkeletonSection({ type }: { type: "architecture" | "phases" | "milestones" | "instruction" }) {
+  if (type === "architecture") {
+    return (
+      <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10">
+        <div className="mb-4">
+          <Skeleton className="h-7 w-64 mb-1.5" />
+          <Skeleton className="h-4 w-80" />
+        </div>
+        <Skeleton className="h-[400px] w-full rounded-xl" />
+      </motion.section>
+    );
+  }
+  if (type === "phases") {
+    return (
+      <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10">
+        <div className="mb-4">
+          <Skeleton className="h-7 w-48 mb-1.5" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-16 w-full rounded-2xl" />
+          <Skeleton className="h-16 w-full rounded-2xl delay-75" />
+          <Skeleton className="h-16 w-full rounded-2xl delay-150" />
+        </div>
+      </motion.section>
+    );
+  }
+  if (type === "milestones") {
+    return (
+      <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10">
+        <div className="mb-4">
+          <Skeleton className="h-7 w-56 mb-1.5" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="space-y-5 ml-3 pl-5 border-l border-border relative">
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-xl delay-75" />
+          <Skeleton className="h-20 w-full rounded-xl delay-150" />
+        </div>
+      </motion.section>
+    );
+  }
+  if (type === "instruction") {
+    return (
+      <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-10">
+        <div className="mb-4">
+          <Skeleton className="h-7 w-48 mb-1.5" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <Skeleton className="h-[500px] w-full rounded-xl" />
+      </motion.section>
+    );
+  }
+  return null;
 }
 
 function Accordion({ title, body }: { title: string; body: string }) {
