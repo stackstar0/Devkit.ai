@@ -54,7 +54,8 @@ function buildGraph(arch: ArchitectureData): { nodes: NodeDef[]; edges: EdgeDef[
   if (arch.database) nodes.push({ id: "database", label: "Database", value: arch.database, icon: Database, color: COLOR_MAP.database, x: 660, y: 80, layer: 3 });
   if (arch.hosting) nodes.push({ id: "hosting", label: "Hosting", value: arch.hosting, icon: Cloud, color: COLOR_MAP.hosting, x: 660, y: 240, layer: 3 });
   // APIs node
-  const apiList = arch.apis || [];
+  const rawApis = arch.apis || [];
+  const apiList = Array.isArray(rawApis) ? rawApis : [rawApis].filter(Boolean);
   if (apiList.length > 0) {
     nodes.push({ id: "apis", label: "External APIs", value: apiList.slice(0, 3).join(", "), icon: Plug, color: COLOR_MAP.apis, x: 460, y: 300, layer: 2 });
   }

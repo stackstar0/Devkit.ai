@@ -41,21 +41,6 @@ function Conversation() {
   const [phasesComplete, setPhasesComplete] = useState(false);
 
 
-  // Seed first AI message on first visit
-  useEffect(() => {
-    if (messages.length === 0 && !hasSeeded.current) {
-      hasSeeded.current = true;
-      addMessage({
-        id: uid(),
-        role: "ai",
-        phase: "ui_ux",
-        timestamp: Date.now(),
-        text: "Awesome — let's shape this together. First, who is the primary user, and what's the single most important thing they should be able to do on day one?",
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Auto-scroll
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
