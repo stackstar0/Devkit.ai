@@ -18,67 +18,52 @@ interface Message {
 }
 
 export function RefinementPanel({ sessionId, open, onClose }: Props) {
-  const { setArchitecture, architecture } = useDevKit();
-  const [messages, setMessages] = useState<Message[]>([
+  const { setArchitecture, architecture, refinementHistory, setRefinementHistory } = useDevKit();
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const displayMessages: Message[] = [
     {
       id: "welcome",
       role: "ai",
       text: "I can refine your blueprint. Try: \"Switch to PostgreSQL\", \"Add Redis caching\", \"Use FastAPI instead of Express\", or \"Add Stripe payments\".",
     },
-  ]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+    ...refinementHistory.map((m, i) => ({
+      id: `msg-${i}`,
+      role: m.role,
+      text: m.text,
+    }))
+  ];
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, loading]);
+  }, [displayMessages, loading]);
 
   async function handleSend() {
     const text = input.trim();
     if (!text || loading) return;
 
-    const uid = () => Math.random().toString(36).slice(2);
-
-    setMessages((m) => [...m, { id: uid(), role: "user", text }]);
+    setRefinementHistory([...refinementHistory, { role: "user", text }]);
     setInput("");
     setLoading(true);
 
     try {
       const result = await refineBlueprint(sessionId, text);
+      // Wait, result.refinement_history comes back from the backend now!
+      if (result.refinement_history) {
+        setRefinementHistory(result.refinement_history);
+      }
+      
       if (result.architecture) {
         setArchitecture({ ...(architecture || {}), ...result.architecture });
-        const changedFields = Object.keys(result.architecture).join(", ");
-        setMessages((m) => [
-          ...m,
-          {
-            id: uid(),
-            role: "ai",
-            text: `✅ Updated: **${changedFields}**. Your architecture canvas has been refreshed. ${
-              result.architecture.database ? `Database is now ${result.architecture.database}.` : ""
-            }`,
-          },
-        ]);
         toast.success("Blueprint updated!");
-      } else {
-        setMessages((m) => [
-          ...m,
-          {
-            id: uid(),
-            role: "ai",
-            text: "I processed your request. The current architecture is already optimal for that configuration — no changes needed.",
-          },
-        ]);
       }
     } catch {
-      setMessages((m) => [
-        ...m,
-        {
-          id: uid(),
-          role: "ai",
-          text: "I couldn't reach the backend to apply that change. Is the DevKit server running?",
-        },
-      ]);
+      setRefinementHistory([...refinementHistory, { role: "user", text }, {
+        role: "ai",
+        text: "I couldn't reach the backend to apply that change. Is the DevKit server running?",
+      }]);
       toast.error("Refinement failed");
     } finally {
       setLoading(false);
@@ -144,7 +129,7 @@ export function RefinementPanel({ sessionId, open, onClose }: Props) {
 
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-none">
-              {messages.map((m) => (
+              {displayMessages.map((m) => (
                 <motion.div
                   key={m.id}
                   initial={{ opacity: 0, y: 6 }}

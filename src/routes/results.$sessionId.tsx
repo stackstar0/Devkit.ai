@@ -41,7 +41,7 @@ function Results() {
     getResults(sessionId)
       .then((data) => {
         if (data.architecture && !architecture) {
-          const { setArchitecture, setMilestones, setInstructionMd, setCost, setWarnings, setProjectName, setPhaseSummaries } = useDevKit.getState();
+          const { setArchitecture, setMilestones, setInstructionMd, setCost, setWarnings, setProjectName, setPhaseSummaries, setRefinementHistory } = useDevKit.getState();
           if (data.architecture) setArchitecture(data.architecture);
           if (data.milestones) setMilestones(data.milestones);
           if (data.instruction_md) setInstructionMd(data.instruction_md);
@@ -49,6 +49,7 @@ function Results() {
           if (data.warnings) setWarnings(data.warnings);
           if (data.project_name) setProjectName(data.project_name);
           if (data.phase_summaries) setPhaseSummaries(data.phase_summaries);
+          if (data.refinement_history) setRefinementHistory(data.refinement_history);
           setSaved(true);
         }
       })

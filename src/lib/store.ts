@@ -45,6 +45,12 @@ export interface Warning {
   description?: string;
 }
 
+export interface RefinementMessage {
+  role: "ai" | "user";
+  text: string;
+  patch?: any;
+}
+
 // ── Blueprint Slice ────────────────────────────────────────────────────────────
 interface BlueprintSlice {
   architecture: ArchitectureData | null;
@@ -54,6 +60,7 @@ interface BlueprintSlice {
   cost: { launch?: string; scale?: string } | null;
   warnings: Warning[] | null;
   projectName: string | null;
+  refinementHistory: RefinementMessage[];
   concurrentUsers: number;
   streamStatus: "idle" | "streaming" | "complete" | "error";
   mode: "quick" | "advanced";
@@ -64,6 +71,7 @@ interface BlueprintSlice {
   setCost: (c: { launch?: string; scale?: string }) => void;
   setWarnings: (w: Warning[]) => void;
   setProjectName: (n: string) => void;
+  setRefinementHistory: (h: RefinementMessage[]) => void;
   setConcurrentUsers: (n: number) => void;
   setStreamStatus: (s: BlueprintSlice["streamStatus"]) => void;
   setMode: (m: "quick" | "advanced") => void;
@@ -101,6 +109,7 @@ const BLUEPRINT_DEFAULTS: BlueprintSlice = {
   cost: null,
   warnings: null,
   projectName: null,
+  refinementHistory: [],
   concurrentUsers: 1000,
   streamStatus: "idle",
   mode: "quick",
@@ -111,6 +120,7 @@ const BLUEPRINT_DEFAULTS: BlueprintSlice = {
   setCost: () => {},
   setWarnings: () => {},
   setProjectName: () => {},
+  setRefinementHistory: () => {},
   setConcurrentUsers: () => {},
   setStreamStatus: () => {},
   setMode: () => {},
@@ -160,6 +170,7 @@ export const useDevKit = create<DevKitState>()(
       cost: null,
       warnings: null,
       projectName: null,
+      refinementHistory: [],
       concurrentUsers: 1000,
       streamStatus: "idle",
       mode: "quick",
@@ -171,6 +182,7 @@ export const useDevKit = create<DevKitState>()(
       setCost: (c) => set({ cost: c }),
       setWarnings: (w) => set({ warnings: w }),
       setProjectName: (n) => set({ projectName: n }),
+      setRefinementHistory: (h) => set({ refinementHistory: h }),
       setConcurrentUsers: (n) => set({ concurrentUsers: n }),
       setStreamStatus: (s) => set({ streamStatus: s }),
       setMode: (m) => set({ mode: m }),
@@ -183,6 +195,7 @@ export const useDevKit = create<DevKitState>()(
           cost: null,
           warnings: null,
           projectName: null,
+          refinementHistory: [],
           concurrentUsers: 1000,
           streamStatus: "idle",
         }),
