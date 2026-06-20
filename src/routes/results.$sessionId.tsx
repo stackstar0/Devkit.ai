@@ -46,7 +46,7 @@ function Results() {
   useStreamBlueprint(sessionId, setStreamEvent);
 
   const isStreaming = streamStatus === "streaming" || streamStatus === "idle";
-  const hasArch = !!architecture;
+  const hasArch = !!architecture && Object.keys(architecture).length > 0;
   const safeMilestones = Array.isArray(milestones) ? milestones : [];
   const hasMilestones = safeMilestones.length > 0;
   const hasInstruction = !!instructionMd;
@@ -81,7 +81,6 @@ function Results() {
           if (data.phase_summaries) setPhaseSummaries(data.phase_summaries);
           if (data.refinement_history) setRefinementHistory(data.refinement_history);
           setSaved(true);
-          setShowOverlay(false);
         }
       })
       .catch(() => {/* streaming will populate the data */});
