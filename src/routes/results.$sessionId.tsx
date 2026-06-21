@@ -214,6 +214,12 @@ function Results() {
       </header>
 
       <main className="max-w-[1400px] mx-auto px-4 md:px-8 py-8 transition-all duration-300 ease-in-out">
+        <div className="mb-6 rounded-xl p-4 bg-amber-500/5 border border-amber-500/20 text-xs text-amber-200/80 flex items-start gap-3">
+          <AlertTriangle className="size-4 shrink-0 text-amber-500/70" />
+          <p>
+            <strong>Responsible AI Notice:</strong> This blueprint is an AI-generated estimate and a starting point, not a definitive technical specification. Review all recommendations with a qualified engineer before deployment.
+          </p>
+        </div>
         <div className={showViewport ? "grid grid-cols-1 xl:grid-cols-3 gap-6 w-full items-start" : ""}>
           {/* Main Content Area */}
           <div className={`space-y-10 ${showViewport ? "xl:col-span-2" : "max-w-6xl mx-auto"}`}>
