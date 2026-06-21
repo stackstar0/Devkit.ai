@@ -57,7 +57,8 @@ function buildGraph(arch: ArchitectureData): { nodes: NodeDef[]; edges: EdgeDef[
   const rawApis = arch.apis || [];
   const apiList = Array.isArray(rawApis) ? rawApis : [rawApis].filter(Boolean);
   if (apiList.length > 0) {
-    nodes.push({ id: "apis", label: "External APIs", value: apiList.slice(0, 3).join(", "), icon: Plug, color: COLOR_MAP.apis, x: 460, y: 300, layer: 2 });
+    const apiText = apiList.length > 2 ? `${apiList[0]}, ${apiList[1]} +${apiList.length - 2}` : apiList.join(", ");
+    nodes.push({ id: "apis", label: "External APIs", value: apiText, icon: Plug, color: COLOR_MAP.apis, x: 440, y: 280, layer: 2 });
   }
 
   // Edges
@@ -119,12 +120,12 @@ function GraphNode({ node, index }: { node: NodeDef; index: number }) {
       transition={{ delay: index * 0.08, type: "spring", stiffness: 200 }}
     >
       {/* Glow */}
-      <rect x={node.x - 2} y={node.y - 2} width={148} height={60} rx={13}
+      <rect x={node.x - 2} y={node.y - 2} width={180} height={60} rx={13}
         fill={`${node.color.replace(")", " / 0.08)")}`}
         style={{ filter: `drop-shadow(0 0 8px ${node.color.replace(")", " / 0.4)")})` }}
       />
       {/* Card bg */}
-      <rect x={node.x} y={node.y} width={144} height={56} rx={11}
+      <rect x={node.x} y={node.y} width={176} height={56} rx={11}
         fill="oklch(0.13 0.02 270 / 0.92)"
         stroke={`${node.color.replace(")", " / 0.4)")}`}
         strokeWidth={1}
@@ -143,7 +144,7 @@ function GraphNode({ node, index }: { node: NodeDef; index: number }) {
         {node.label.toUpperCase()}
       </text>
       <text x={node.x + 52} y={node.y + 38} fontSize={10.5} fill="oklch(0.92 0.01 260)" fontFamily="Inter, sans-serif" fontWeight={600}>
-        {node.value.length > 16 ? node.value.slice(0, 16) + "…" : node.value}
+        {node.value.length > 25 ? node.value.slice(0, 24) + "…" : node.value}
       </text>
     </motion.g>
   );
