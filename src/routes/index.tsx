@@ -214,7 +214,7 @@ function Landing() {
     return () => clearInterval(t);
   }, []);
 
-  const handleStart = useCallback(async (overrideIdea?: string) => {
+  const handleStart = useCallback(async (overrideIdea?: string, overrideMode?: "quick" | "advanced") => {
     const prompt = (overrideIdea ?? idea).trim();
     if (!prompt) {
       toast.error("Tell us what you're building first.");
@@ -223,7 +223,8 @@ function Landing() {
     setLoading(true);
     resetBlueprint();
     try {
-      if (mode === "quick") {
+      const activeMode = overrideMode ?? mode;
+      if (activeMode === "quick") {
         // Quick Mode: predict → go straight to results
         const { session_id } = await predictSession(prompt);
         setSession(session_id, prompt);
@@ -246,7 +247,7 @@ function Landing() {
     const demoPrompt = "Build a hyper-scalable B2B SaaS platform for real-time asset tracking with multi-tenant isolation, AI billing forecasting, and edge-cached database architecture.";
     setIdea(demoPrompt);
     setMode("quick");
-    setTimeout(() => handleStart(demoPrompt), 80);
+    handleStart(demoPrompt, "quick");
   }, [handleStart, setMode]);
 
   const isEmpty = idea.trim().length === 0;
